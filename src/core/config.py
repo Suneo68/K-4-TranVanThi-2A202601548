@@ -2,7 +2,11 @@
 Lab 11 — Configuration & API Key Setup
 """
 import os
+from dotenv import load_dotenv
 
+# Load biến môi trường từ file .env ở thư mục gốc
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
+load_dotenv() # Fallback for current directory
 
 def setup_api_key():
     """Load Google API key from environment or prompt."""

@@ -65,32 +65,39 @@ class ConfidenceRouter:
         Returns:
             RoutingDecision with routing action and metadata
         """
-        # TODO 11: Implement routing logic
-        #
-        # 1. Check if action_type is in HIGH_RISK_ACTIONS
-        #    -> If yes: always escalate (action="escalate", priority="high",
-        #       requires_human=True, reason="High-risk action: {action_type}")
-        #
-        # 2. Check confidence thresholds:
-        #    - confidence >= 0.9:
-        #      action="auto_send", priority="low",
-        #      requires_human=False, reason="High confidence"
-        #
-        #    - 0.7 <= confidence < 0.9:
-        #      action="queue_review", priority="normal",
-        #      requires_human=True, reason="Medium confidence — needs review"
-        #
-        #    - confidence < 0.7:
-        #      action="escalate", priority="high",
-        #      requires_human=True, reason="Low confidence — escalating"
-
-        return RoutingDecision(
-            action="auto_send",
-            confidence=confidence,
-            reason="TODO: implement routing logic",
-            priority="low",
-            requires_human=False,
-        )  # TODO: Replace with implementation
+        if action_type in HIGH_RISK_ACTIONS:
+            return RoutingDecision(
+                action="escalate",
+                confidence=confidence,
+                reason=f"High-risk action: {action_type}",
+                priority="high",
+                requires_human=True,
+            )
+            
+        if confidence >= self.HIGH_THRESHOLD:
+            return RoutingDecision(
+                action="auto_send",
+                confidence=confidence,
+                reason="High confidence",
+                priority="low",
+                requires_human=False,
+            )
+        elif confidence >= self.MEDIUM_THRESHOLD:
+            return RoutingDecision(
+                action="queue_review",
+                confidence=confidence,
+                reason="Medium confidence — needs review",
+                priority="normal",
+                requires_human=True,
+            )
+        else:
+            return RoutingDecision(
+                action="escalate",
+                confidence=confidence,
+                reason="Low confidence — escalating",
+                priority="high",
+                requires_human=True,
+            )
 
 
 # ============================================================
@@ -111,33 +118,33 @@ class ConfidenceRouter:
 hitl_decision_points = [
     {
         "id": 1,
-        "name": "TODO: Name this decision point",
-        "trigger": "TODO: When does this trigger?",
-        "hitl_model": "TODO: human-in-the-loop / human-on-the-loop / human-as-tiebreaker",
-        "context_needed": "TODO: What does the reviewer need to see?",
-        "example": "TODO: Give a concrete example scenario",
-        "approval_path": "TODO: Explain approve, reject and timeout behavior",
-        "audit_fields": "TODO: List correlation ID, intent, diff and reviewer decision",
+        "name": "High-Risk Action Escalation (Money Transfer)",
+        "trigger": "User requests a money transfer or beneficiary change (action in HIGH_RISK_ACTIONS).",
+        "hitl_model": "human-in-the-loop (blocking)",
+        "context_needed": "Diff of old/new beneficiary, transfer amount, anomaly signals (e.g. new IP login), user account history.",
+        "example": "User requests transferring $50,000 to an unknown external account.",
+        "approval_path": "Approve -> execute API. Reject -> notify user transaction failed. Timeout (default) -> hold/reject transaction automatically.",
+        "audit_fields": "request_id, intent='transfer_money', diff='beneficiary: None -> X', reviewer_id, reviewer_decision, audit_layer='ActionGateway'",
     },
     {
         "id": 2,
-        "name": "TODO: Name this decision point",
-        "trigger": "TODO: When does this trigger?",
-        "hitl_model": "TODO: human-in-the-loop / human-on-the-loop / human-as-tiebreaker",
-        "context_needed": "TODO: What does the reviewer need to see?",
-        "example": "TODO: Give a concrete example scenario",
-        "approval_path": "TODO: Explain approve, reject and timeout behavior",
-        "audit_fields": "TODO: List correlation ID, intent, diff and reviewer decision",
+        "name": "Medium Confidence Response Queue",
+        "trigger": "Confidence score is between 0.70 and 0.89.",
+        "hitl_model": "human-on-the-loop (asynchronous queue)",
+        "context_needed": "User chat history (last 5 messages), the LLM's drafted response, and the exact confidence score.",
+        "example": "User asks 'Can I combine my auto loan and mortgage?' and the agent drafts a complex reply but is only 75% confident.",
+        "approval_path": "Approve -> send drafted text. Reject -> human rewrites the response. Timeout -> send generic fallback ('Please call support').",
+        "audit_fields": "request_id, intent='loan_inquiry', proposed_response='Drafted text...', reviewer_decision='rewritten', audit_layer='ResponseRouter'",
     },
     {
         "id": 3,
-        "name": "TODO: Name this decision point",
-        "trigger": "TODO: When does this trigger?",
-        "hitl_model": "TODO: human-in-the-loop / human-on-the-loop / human-as-tiebreaker",
-        "context_needed": "TODO: What does the reviewer need to see?",
-        "example": "TODO: Give a concrete example scenario",
-        "approval_path": "TODO: Explain approve, reject and timeout behavior",
-        "audit_fields": "TODO: List correlation ID, intent, diff and reviewer decision",
+        "name": "Low Confidence / Unsafe Policy Violation",
+        "trigger": "Confidence < 0.70 OR OutputGuardrail flags response as UNSAFE.",
+        "hitl_model": "human-in-the-loop (immediate takeover)",
+        "context_needed": "Full chat transcript, flagged violation reason (e.g., 'PII detected'), user profile details.",
+        "example": "User is extremely angry about hidden fees, complains using profanity, and agent confidence drops to 0.4.",
+        "approval_path": "Human takes over live chat. Timeout -> Send automated apology message and create a CRM support ticket.",
+        "audit_fields": "request_id, intent='complaint', violation_reason='low_confidence', reviewer_decision='human_takeover', audit_layer='SafetyFilter'",
     },
 ]
 

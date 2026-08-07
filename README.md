@@ -1,5 +1,8 @@
 # Day 11 — Controlled Agent Security (2026)
 
+**Họ và tên:** Trần Văn Thi
+**MSSV:** 2A202601548
+
 Làm sao để ứng dụng agent an toàn hơn?
 
 **Hình thức:** bài tập **cá nhân** (1 người / 1 MSSV).
